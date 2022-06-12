@@ -1,0 +1,73 @@
+#To do Sentiment Analysis on data extracted from Twitter, we will use the Python TextBlob library that has NLP models for various uses.
+#Previously see the "MasterDataAnalyst/TweetExtraction" file, because the data from the "stockMarket" collection is analyzed.
+
+#Import the following libraries, and in the case of textblob, install it previously
+import nltk
+import textblob 
+from textblob import TextBlob
+import matplotlib.pyplot as plt
+
+#Import "numpy" and "pandas" to calculate weighted average
+import numpy as np
+import pandas as pd
+
+#Add to each tweet in the collection "StockMarket", its Polarity and Subjectivity
+tweet_list = []
+number_SM = 1
+
+for tweet in db3.StockMarket.find():
+    #only tweets in english are analyzed
+    lang = tweet['lang']
+    if lang == "en":
+        #This cycle will give us the polarity and subjectivity of each tweet, in addition to the number of tweets, 
+        #in order to determine the frequency of the tweets in each polarity, and then be able to graph them            
+            try:
+                analysis_SM = TextBlob(tweet['full_text'])
+                tweet_list.append({'date': tweet['created_at'], 'Model': 'Analisis Sentimiento-Texblob', 'Company': 'StockMarket',
+                                   'Source': 'Twitter' ,'Text': tweet['full_text'], 'Polarity': analysis_SM.sentiment.polarity,
+                                   'Subjectivity':analysis_SM.sentiment.subjectivity, 'Number_SM': number_SM})
+                number_SM = number_SM + 1
+            except tweepy.TweepError as e:
+                print(e.reason)
+            except StopIteration:
+                break
+
+#see the list in a spreadsheet
+tweet_df = pd.DataFrame(tweet_list)
+tweet_df
+
+#We store the data in a collection called "Sentiment_Analysis_SM"
+for tweet_sentiment in tweet_list:
+    db3.Sentiment_Analysis_SM.insert_one(tweet_sentiment)
+
+for tweet in db3.Sentiment_Analysis_SM.find():
+    print(tweet)
+    
+#To plot in Python we use matplotlib.
+
+#Create Cartesian axis. The limits are from -1 to 4 because this polarity is in percentages, these percentages are given in frequencies less than 1
+axes = plt.gca()
+axes.set_ylim([-1, 4])
+plt.scatter(tweet_df['Number_SM'], tweet_df['Polarity'], color='blue', label="StockMarket")
+plt.legend(loc='upper left')
+
+#Calculate the average polarity. Keep in mind that it is not a weighted average, it is an average, that is, 
+#a simple average that adds polarities and divides it by the number of polarities. 
+#In this case, it assumes that you have the same frequency in the different polarities, which is not true, so this average will not be exact, 
+#for this, we will have to use a weighted average calculation.
+
+from datetime import datetime
+averagePolarity_SM = (sum(tweet_df['Polarity']))/(len(tweet_df['Polarity']))
+averagePolarity_SM = "{0:.0f}%".format(averagePolarity_SM * 100)
+
+#Calculate the weighted average
+weighted_avgPolarity_SM = np.average(tweet_df['Polarity'], weights=tweet_df['Number_SM'])
+weighted_avgPolarity_SM = "{0:.0f}%".format(weighted_avgPolarity_SM * 100)
+
+#determines when the data is retrieved.
+time  = datetime.now().strftime("At%M\nOn: %m-%d-%y")
+
+#Add text with average sentiment
+plt.text(0, 1.5, "Average Sentiment SM:  " + str(averagePolarity_SM) + "\n" + " Weighted Average Sentiment SM:  " + str(weighted_avgPolarity_SM) + "\n" + time, fontsize=12, bbox = dict(facecolor='none', edgecolor='black', boxstyle='square, pad = 1'))
+
+plt.show()
