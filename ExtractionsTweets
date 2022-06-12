@@ -1,0 +1,30 @@
+####input your credentials here (developer keys are needed to access the Twitter API)
+consumer_key = 'xxxxxxxxx'
+consumer_secret = 'xxxxxxxxxx'
+access_token = 'xxxxxxxxxxxxxxxxxxx'
+access_token_secret = 'yyyyyyyyyyyyyyy'
+
+import tweepy
+
+#We prepare the authentication
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+
+#We prepare the Tweepy API module
+api = tweepy.API(auth)
+
+#To save the data in MongoDB, we import PyMongo
+from pymongo import MongoClient
+
+#We create a connection with the BBDD
+client = MongoClient()
+           
+#we use a database called "tfm2"
+db3 = client.tfm2
+
+#We extract 3000 most recent tweets (within a period of time no greater than 7 days), returned on pages of 100 (which is the maximum), with the requested hashtags.
+#"tweet_mode = extended" is used because since Twitter made tweets longer (from 140 to 280 characters) the 280-character tweet is stored in another attribute; the normal "text" would be truncated.
+#Each tweet is stored in a collection called "StockMarket"
+for tweet in tweepy.Cursor(api.search,q=("#ibex35 OR #mercadobursatil OR #StockMarket OR #bolsadevalores OR #economiaespaña OR #SpanishEconomy OR #StockExchange OR #trading OR #trader"),count=100,
+                           tweet_mode= 'extended').items(3000):
+    db3.StockMarket.insert_one(tweet._json)
